@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-import asyncio
 import json
 
 with open('setting.json', mode='r',encoding='utf8') as jfile:
@@ -12,8 +11,6 @@ bot=commands.Bot(command_prefix=".",intents=intents)
 @bot.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
-    game = discord.Game("Discord")
-    await bot.change_presence(status=discord.Status.idle, activity=game)
 
 @bot.command()
 async def ping(ctx):
@@ -22,7 +19,7 @@ async def ping(ctx):
 @bot.command()
 async def scan(ctx, channel_id: int):
     channel = bot.get_channel(channel_id)
-    messages = channel.history(limit=100)
+    messages = channel.history(limit=10000)
     urls = ""
     async for message in messages:
         if message.content.startswith('https://85tube.com/videos/'):
@@ -31,7 +28,10 @@ async def scan(ctx, channel_id: int):
         else:
             print('not match')
 
-    await ctx.send(urls)
+    if len(urls) > 4000:
+        await ctx.send('too many urls')
+    else:
+        await ctx.send(urls)
     print('done')
 
 @bot.command()
