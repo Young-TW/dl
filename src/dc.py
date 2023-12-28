@@ -17,6 +17,33 @@ async def ping(ctx):
     await ctx.send(f'{round(bot.latency*1000)}ms')
 
 @bot.command()
+async def classtify(ctx, channel_id: int):
+    channel = bot.get_channel(channel_id)
+    messages = channel.history(limit=10000)
+    urls = ""
+    tags = ""
+    channels = ""
+    async for message in messages:
+        if message.content.startswith('https://85tube.com/videos/'):
+            urls += (message.content + '\n')
+        elif message.content.startswith('https://85tube.com/tags/'):
+            tags += (message.content + '\n')
+        elif message.content.startswith('https://85tube.com/members/'):
+            channels += (message.content + '\n')
+        else:
+            print('not match')
+
+    print("urls:")
+    for i in urls.splitlines():
+        print(i)
+    print("tags:")
+    for i in tags.splitlines():
+        print(i)
+    print("channels:")
+    for i in channels.splitlines():
+        print(i)
+
+@bot.command()
 async def scan(ctx, channel_id: int):
     channel = bot.get_channel(channel_id)
     messages = channel.history(limit=10000)
