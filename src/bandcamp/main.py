@@ -3,6 +3,31 @@ from bs4 import BeautifulSoup
 import os
 import argparse
 
+def get_followed_artists(user_url):
+    print(f"Fetching followed artists from {user_url}...")
+    response = requests.get(user_url)
+    if response.status_code == 200:
+        print("Fetching successful!")
+    else:
+        print(f"Failed to fetch followed artists. Status code: {response.status_code}")
+        return []
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    artist_links = []
+
+    # 找到所有被追蹤藝術家的連結
+    for link in soup.find_all('div', class_='fan-image'):
+        a_tag = link.find('a', href=True)
+        if a_tag:
+            artist_url = a_tag['href']
+            artist_links.append(artist_url)
+            print(f"Found artist link: {artist_url}")
+
+    if not artist_links:
+        print("No followed artists found. Please check the page structure.")
+    return artist_links
+
 def get_artist_albums(artist_url):
     print(f"Fetching albums from {artist_url}...")
     response = requests.get(artist_url)
@@ -16,9 +41,7 @@ def get_artist_albums(artist_url):
 
     album_links = []
 
-    # 找到所有專輯的連結
     for link in soup.find_all('a', href=True):
-        # 根據 HTML 結構，我們只需要 href 屬性以 /track/ 或 /album/ 開頭的連結
         href = link.get('href')
         if href.startswith('/track/') or href.startswith('/album/'):
             album_url = artist_url + href
@@ -30,7 +53,6 @@ def get_artist_albums(artist_url):
     return album_links
 
 def download_album(album_url):
-    # 使用 bandcamp-dl 下載專輯
     command = f"bandcamp-dl \"{album_url}\""
     print(f"Downloading from {album_url}...")
     result = os.system(command)
@@ -41,21 +63,22 @@ def download_album(album_url):
         print(f"Download from {album_url} : failed")
 
 def main():
-    # 使用 argparse 來處理命令行參數
-    parser = argparse.ArgumentParser(description='Download all albums from a Bandcamp artist.')
-    parser.add_argument('artist', type=str, help='The artist name on Bandcamp (e.g., hitnex)')
+    parser = argparse.ArgumentParser(description='Download all albums from artists followed by a Bandcamp user.')
+    parser.add_argument('username', type=str, help='The Bandcamp username (e.g., youngtw)')
 
     args = parser.parse_args()
 
-    # 藝術家主頁URL
-    artist_url = f"https://{args.artist}.bandcamp.com"
+    # 使用者的 following 頁面 URL
+    user_url = f"https://bandcamp.com/{args.username}/following"
 
-    # 取得所有專輯的URL
-    album_links = get_artist_albums(artist_url)
+    # 取得使用者追蹤的所有藝術家 URL
+    artist_links = get_followed_artists(user_url)
 
-    # 下載每一個專輯
-    for link in album_links:
-        download_album(link)
+    for artist_link in artist_links:
+        album_links = get_artist_albums(artist_link)
+
+        for album_link in album_links:
+            download_album(album_link)
 
 if __name__ == "__main__":
     main()
