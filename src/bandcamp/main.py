@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import os
+import argparse
 
 def get_artist_albums(artist_url):
     print(f"Fetching albums from {artist_url}...")
@@ -17,7 +18,7 @@ def get_artist_albums(artist_url):
 
     # 找到所有專輯的連結
     for link in soup.find_all('a', href=True):
-        # 根據 HTML 結構，我們只需要 href 屬性以 /track/ 開頭的連結
+        # 根據 HTML 結構，我們只需要 href 屬性以 /track/ 或 /album/ 開頭的連結
         href = link.get('href')
         if href.startswith('/track/') or href.startswith('/album/'):
             album_url = artist_url + href
@@ -40,8 +41,14 @@ def download_album(album_url):
         print(f"Download from {album_url} : failed")
 
 def main():
-    # 藝術家主頁URL，請替換為你要爬取的藝術家頁面
-    artist_url = "https://hitnex.bandcamp.com"
+    # 使用 argparse 來處理命令行參數
+    parser = argparse.ArgumentParser(description='Download all albums from a Bandcamp artist.')
+    parser.add_argument('artist', type=str, help='The artist name on Bandcamp (e.g., hitnex)')
+
+    args = parser.parse_args()
+
+    # 藝術家主頁URL
+    artist_url = f"https://{args.artist}.bandcamp.com"
 
     # 取得所有專輯的URL
     album_links = get_artist_albums(artist_url)
