@@ -53,6 +53,11 @@ def get_artist_albums(artist_url):
     return album_links
 
 def download_album(album_url):
+    album_name = album_url.split('/')[-1]
+    if os.path.exists(album_name):
+        print(f"Album {album_name} already downloaded. Skipping...")
+        return
+
     command = f"bandcamp-dl \"{album_url}\""
     print(f"Downloading from {album_url}...")
     result = os.system(command)
@@ -62,23 +67,47 @@ def download_album(album_url):
     else:
         print(f"Download from {album_url} : failed")
 
+def download_artist_albums(artist_url):
+    album_links = get_artist_albums(artist_url)
+    for album_link in album_links:
+        download_album(album_link)
+
 def main():
-    parser = argparse.ArgumentParser(description='Download all albums from artists followed by a Bandcamp user.')
-    parser.add_argument('username', type=str, help='The Bandcamp username (e.g., youngtw)')
+    parser = argparse.ArgumentParser(description='Download albums from Bandcamp.')
+    parser.add_argument('mode', choices=['all', 'artist', 'album'], help='Select download mode: "all" for all followed artists, "artist" for a single artist, "album" for a single album.')
+    parser.add_argument('--username', type=str, help='The Bandcamp username (required if mode is "all")')
+    parser.add_argument('--artist_url', type=str, help='The URL of the artist page (required if mode is "artist" or "album")')
+    parser.add_argument('--album_url', type=str, help='The URL of the album page (required if mode is "album")')
 
     args = parser.parse_args()
 
-    # 使用者的 following 頁面 URL
-    user_url = f"https://bandcamp.com/{args.username}/following"
+    if args.mode == 'all':
+        if not args.username:
+            print("Error: --username is required when mode is 'all'")
+            return
 
-    # 取得使用者追蹤的所有藝術家 URL
-    artist_links = get_followed_artists(user_url)
+        # 使用者的 following 頁面 URL
+        user_url = f"https://bandcamp.com/{args.username}/following"
 
-    for artist_link in artist_links:
-        album_links = get_artist_albums(artist_link)
+        # 取得使用者追蹤的所有藝術家 URL
+        artist_links = get_followed_artists(user_url)
 
-        for album_link in album_links:
-            download_album(album_link)
+        for artist_link in artist_links:
+            download_artist_albums(artist_link)
+
+    elif args.mode == 'artist':
+        if not args.artist_url:
+            print("Error: --artist_url is required when mode is 'artist'")
+            return
+
+        download_artist_albums(args.artist_url)
+
+    elif args.mode == 'album':
+        if not args.album_url:
+            print("Error: --album_url is required when mode is 'album'")
+            return
+
+        download_album(args.album_url)
 
 if __name__ == "__main__":
     main()
