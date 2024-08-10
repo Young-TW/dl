@@ -5,9 +5,9 @@ def get_followed_artists(user_url):
     print(f"Fetching followed artists from {user_url}...")
     command = f"soundcloud-dl --list-followings {user_url}"
     result = os.popen(command).read()
-    
+
     artist_links = []
-    
+
     if result:
         lines = result.strip().split('\n')
         for line in lines:
@@ -16,14 +16,14 @@ def get_followed_artists(user_url):
                 print(f"Found artist link: {line}")
     else:
         print("No followed artists found or failed to fetch.")
-    
+
     return artist_links
 
 def download_track_or_playlist(url):
     command = f"soundcloud-dl {url}"
     print(f"Downloading from {url}...")
     result = os.system(command)
-    
+
     if result == 0:
         print(f"Download from {url}: success")
     else:
@@ -33,9 +33,9 @@ def download_artist_tracks(artist_url):
     command = f"soundcloud-dl --list-tracks {artist_url}"
     print(f"Fetching tracks from {artist_url}...")
     result = os.popen(command).read()
-    
+
     track_links = []
-    
+
     if result:
         lines = result.strip().split('\n')
         for line in lines:
@@ -44,7 +44,7 @@ def download_artist_tracks(artist_url):
                 print(f"Found track link: {line}")
     else:
         print("No tracks found or failed to fetch.")
-    
+
     for track_link in track_links:
         download_track_or_playlist(track_link)
 
@@ -64,10 +64,10 @@ def main():
 
         # 使用者的 following 頁面 URL
         user_url = f"https://soundcloud.com/{args.username}"
-        
+
         # 取得使用者追蹤的所有藝術家 URL
         artist_links = get_followed_artists(user_url)
-        
+
         for artist_link in artist_links:
             download_artist_tracks(artist_link)
 
