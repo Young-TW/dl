@@ -18,7 +18,7 @@ def download_instagram_content(target_username, download_stories, download_highl
     # 下載精選即時動態
     if download_highlights:
         print(f"Downloading highlights from {target_username}...")
-        for highlight in profile.get_highlights():
+        for highlight in L.get_highlights(profile.userid):
             for item in highlight.get_items():
                 L.download_storyitem(item, target=f"{target_username}_highlights")
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument("--highlights", action="store_true", help="Download highlights from the target user.")
     parser.add_argument("--posts", action="store_true", help="Download posts from the target user.")
     parser.add_argument("--reels", action="store_true", help="Download reels from the target user.")
-    parser.add_arguemnt("--all", action="store_true", help="Download all content from the target user.")
+    parser.add_argument("--all", action="store_true", help="Download all content from the target user.")
 
     args = parser.parse_args()
 
