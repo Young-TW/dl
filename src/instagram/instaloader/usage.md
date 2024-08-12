@@ -14,3 +14,7 @@
 3. **下載邏輯**：
    - 貼文和 Reels 是根據貼文的類型來區分的，`GraphVideo` 類型且 `is_video` 為 `True` 的貼文被認為是 Reels。
    - 下載的內容會分別儲存在 `target_username_posts` 和 `target_username_reels` 資料夾中。
+
+## 注意事項
+
+如果大量下載 Instagram 內容，請注意 Instagram 的使用條款，以避免帳號被封鎖。
