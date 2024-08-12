@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import os
 import argparse
+import subprocess
 
 def get_followed_artists(user_url):
     print(f"Fetching followed artists from {user_url}...")
@@ -22,7 +23,6 @@ def get_followed_artists(user_url):
         if a_tag:
             artist_url = a_tag['href']
             artist_links.append(artist_url)
-            print(f"Found artist link: {artist_url}")
 
     if not artist_links:
         print("No followed artists found. Please check the page structure.")
@@ -46,31 +46,32 @@ def get_artist_albums(artist_url):
         if href.startswith('/track/') or href.startswith('/album/'):
             album_url = artist_url + href
             album_links.append(album_url)
-            print(f"Found album link: {album_url}")
 
     if not album_links:
         print("No albums found. Please check the page structure.")
     return album_links
 
-def download_album(album_url):
+def download_album(album_url, total_albums, current_count):
     album_name = album_url.split('/')[-1]
     if os.path.exists(album_name):
-        print(f"Album {album_name} already downloaded. Skipping...")
+        print(f"{current_count}/{total_albums} - Album {album_name} already downloaded. Skipping...")
         return
 
     command = f"bandcamp-dl \"{album_url}\""
-    print(f"Downloading from {album_url}...")
-    result = os.system(command)
+    print(f"{current_count}/{total_albums} - Downloading {album_name}...")
 
-    if result == 0:
-        print(f"Download from {album_url} : success")
+    # 隱藏原始輸出
+    result = subprocess.run(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    if result.returncode == 0:
+        print(f"{current_count}/{total_albums} - Download {album_name}: success")
     else:
-        print(f"Download from {album_url} : failed")
+        print(f"{current_count}/{total_albums} - Download {album_name}: failed")
 
-def download_artist_albums(artist_url):
+def download_artist_albums(artist_url, total_albums, start_count):
     album_links = get_artist_albums(artist_url)
-    for album_link in album_links:
-        download_album(album_link)
+    for idx, album_link in enumerate(album_links, start=start_count):
+        download_album(album_link, total_albums, idx)
 
 def main():
     parser = argparse.ArgumentParser(description='Download albums from Bandcamp.')
@@ -86,28 +87,32 @@ def main():
             print("Error: --username is required when mode is 'all'")
             return
 
-        # 使用者的 following 頁面 URL
         user_url = f"https://bandcamp.com/{args.username}/following"
 
-        # 取得使用者追蹤的所有藝術家 URL
         artist_links = get_followed_artists(user_url)
 
+        total_albums = sum(len(get_artist_albums(link)) for link in artist_links)
+        current_count = 1
+
         for artist_link in artist_links:
-            download_artist_albums(artist_link)
+            download_artist_albums(artist_link, total_albums, current_count)
+            current_count += len(get_artist_albums(artist_link))
 
     elif args.mode == 'artist':
         if not args.artist_url:
             print("Error: --artist_url is required when mode is 'artist'")
             return
 
-        download_artist_albums(args.artist_url)
+        album_links = get_artist_albums(args.artist_url)
+        total_albums = len(album_links)
+        download_artist_albums(args.artist_url, total_albums, 1)
 
     elif args.mode == 'album':
         if not args.album_url:
             print("Error: --album_url is required when mode is 'album'")
             return
 
-        download_album(args.album_url)
+        download_album(args.album_url, 1, 1)
 
 if __name__ == "__main__":
     main()
