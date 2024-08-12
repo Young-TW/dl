@@ -3,53 +3,52 @@ from bs4 import BeautifulSoup
 import os
 import argparse
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 def get_followed_artists(user_url):
     print(f"Fetching followed artists from {user_url}...")
-    response = requests.get(user_url)
-    if response.status_code == 200:
-        print("Fetching successful!")
+    response = send_request_with_retry(user_url)
+    if response and response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        artist_links = []
+        for link in soup.find_all('div', class_='fan-image'):
+            a_tag = link.find('a', href=True)
+            if a_tag:
+                artist_url = a_tag['href']
+                artist_links.append(artist_url)
+        return artist_links
     else:
-        print(f"Failed to fetch followed artists. Status code: {response.status_code}")
+        print(f"Failed to fetch followed artists. Status code: {response.status_code if response else 'N/A'}")
         return []
-
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    artist_links = []
-
-    # 找到所有被追蹤藝術家的連結
-    for link in soup.find_all('div', class_='fan-image'):
-        a_tag = link.find('a', href=True)
-        if a_tag:
-            artist_url = a_tag['href']
-            artist_links.append(artist_url)
-
-    if not artist_links:
-        print("No followed artists found. Please check the page structure.")
-    return artist_links
 
 def get_artist_albums(artist_url):
-    print(f"Fetching albums from {artist_url}...")
-    response = requests.get(artist_url)
-    if response.status_code == 200:
-        print("Fetching successful!")
+    response = send_request_with_retry(artist_url)
+    if response and response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        album_links = []
+        for link in soup.find_all('a', href=True):
+            href = link.get('href')
+            if href.startswith('/track/') or href.startswith('/album/'):
+                album_url = artist_url + href
+                album_links.append(album_url)
+        return album_links
     else:
-        print(f"Failed to fetch albums. Status code: {response.status_code}")
+        print(f"Failed to fetch albums from {artist_url}. Status code: {response.status_code if response else 'N/A'}")
         return []
 
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    album_links = []
-
-    for link in soup.find_all('a', href=True):
-        href = link.get('href')
-        if href.startswith('/track/') or href.startswith('/album/'):
-            album_url = artist_url + href
-            album_links.append(album_url)
-
-    if not album_links:
-        print("No albums found. Please check the page structure.")
-    return album_links
+def send_request_with_retry(url, max_retries=3):
+    retries = 0
+    while retries < max_retries:
+        response = requests.get(url)
+        if response.status_code == 429:
+            retries += 1
+            print(f"Received 429 Too Many Requests. Retrying in 10 seconds... (Attempt {retries}/{max_retries})")
+            time.sleep(10)
+        else:
+            return response
+    print(f"Max retries reached for URL: {url}.")
+    return None
 
 def download_album(album_url, total_albums, current_count):
     album_name = album_url.split('/')[-1]
@@ -70,8 +69,12 @@ def download_album(album_url, total_albums, current_count):
 
 def download_artist_albums(artist_url, total_albums, start_count):
     album_links = get_artist_albums(artist_url)
-    for idx, album_link in enumerate(album_links, start=start_count):
-        download_album(album_link, total_albums, idx)
+    with ThreadPoolExecutor() as executor:
+        futures = []
+        for idx, album_link in enumerate(album_links, start=start_count):
+            futures.append(executor.submit(download_album, album_link, total_albums, idx))
+        for future in as_completed(futures):
+            future.result()
 
 def main():
     parser = argparse.ArgumentParser(description='Download albums from Bandcamp.')
@@ -94,9 +97,13 @@ def main():
         total_albums = sum(len(get_artist_albums(link)) for link in artist_links)
         current_count = 1
 
-        for artist_link in artist_links:
-            download_artist_albums(artist_link, total_albums, current_count)
-            current_count += len(get_artist_albums(artist_link))
+        with ThreadPoolExecutor() as executor:
+            futures = []
+            for artist_link in artist_links:
+                futures.append(executor.submit(download_artist_albums, artist_link, total_albums, current_count))
+                current_count += len(get_artist_albums(artist_link))
+            for future in as_completed(futures):
+                future.result()
 
     elif args.mode == 'artist':
         if not args.artist_url:
