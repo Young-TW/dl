@@ -3,8 +3,8 @@ from bs4 import BeautifulSoup
 import os
 import argparse
 import subprocess
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 def get_followed_artists(user_url):
     print(f"Fetching followed artists from {user_url}...")
@@ -67,14 +67,19 @@ def download_album(album_url, total_albums, current_count):
     else:
         print(f"{current_count}/{total_albums} - Download {album_name}: failed")
 
-def download_artist_albums(artist_url, total_albums, start_count):
+def download_artist_albums(artist_url, total_albums, start_count, use_multi_thread):
     album_links = get_artist_albums(artist_url)
-    with ThreadPoolExecutor() as executor:
-        futures = []
+
+    if use_multi_thread:
+        with ThreadPoolExecutor() as executor:
+            futures = []
+            for idx, album_link in enumerate(album_links, start=start_count):
+                futures.append(executor.submit(download_album, album_link, total_albums, idx))
+            for future in as_completed(futures):
+                future.result()
+    else:
         for idx, album_link in enumerate(album_links, start=start_count):
-            futures.append(executor.submit(download_album, album_link, total_albums, idx))
-        for future in as_completed(futures):
-            future.result()
+            download_album(album_link, total_albums, idx)
 
 def main():
     parser = argparse.ArgumentParser(description='Download albums from Bandcamp.')
@@ -82,6 +87,7 @@ def main():
     parser.add_argument('--username', type=str, help='The Bandcamp username (required if mode is "all")')
     parser.add_argument('--artist_url', type=str, help='The URL of the artist page (required if mode is "artist" or "album")')
     parser.add_argument('--album_url', type=str, help='The URL of the album page (required if mode is "album")')
+    parser.add_argument('--multi_thread', action='store_true', help='Enable multi-threading for downloads')
 
     args = parser.parse_args()
 
@@ -97,13 +103,9 @@ def main():
         total_albums = sum(len(get_artist_albums(link)) for link in artist_links)
         current_count = 1
 
-        with ThreadPoolExecutor() as executor:
-            futures = []
-            for artist_link in artist_links:
-                futures.append(executor.submit(download_artist_albums, artist_link, total_albums, current_count))
-                current_count += len(get_artist_albums(artist_link))
-            for future in as_completed(futures):
-                future.result()
+        for artist_link in artist_links:
+            download_artist_albums(artist_link, total_albums, current_count, args.multi_thread)
+            current_count += len(get_artist_albums(artist_link))
 
     elif args.mode == 'artist':
         if not args.artist_url:
@@ -112,7 +114,7 @@ def main():
 
         album_links = get_artist_albums(args.artist_url)
         total_albums = len(album_links)
-        download_artist_albums(args.artist_url, total_albums, 1)
+        download_artist_albums(args.artist_url, total_albums, 1, args.multi_thread)
 
     elif args.mode == 'album':
         if not args.album_url:
