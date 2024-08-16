@@ -3,32 +3,25 @@ from bs4 import BeautifulSoup
 import os
 import argparse
 import yt_dlp
+from requests_html import HTMLSession
 
-def get_followed_artists(user_url):
-    print(f"Fetching followed artists from {user_url}...")
-    response = requests.get(user_url)
-    if response.status_code == 200:
-        print("Fetching successful!")
-    else:
-        print(f"Failed to fetch followed artists. Status code: {response.status_code}")
-        return []
-
-    soup = BeautifulSoup(response.text, 'html.parser')
+def get_followed_artists_html(user_url):
+    session = HTMLSession()
+    response = session.get(user_url)
+    response.html.render()
 
     artist_links = []
 
-    # 找到所有被追蹤藝術家的連結
-    for link in soup.find_all('a', class_='sc-link-primary'):
-        artist_url = link['href']
-        if artist_url.startswith('/'):
-            artist_url = "https://soundcloud.com" + artist_url
-        artist_links.append(artist_url)
-        print(f"Found artist link: {artist_url}")
+    for element in response.html.find('div.userBadgeListItem__image'):
+        parent_link = element.find('a', first=True).attrs['href']
+        if parent_link.startswith('/'):
+            parent_link = "https://soundcloud.com" + parent_link
+        artist_links.append(parent_link)
+        print(f"Found artist link: {parent_link}")
 
     if not artist_links:
         print("No followed artists found. Please check the page structure.")
     return artist_links
-
 def get_artist_tracks(artist_url):
     print(f"Fetching tracks from {artist_url}...")
     response = requests.get(artist_url)
@@ -91,7 +84,7 @@ def main():
         user_url = f"https://soundcloud.com/{args.username}/following"
 
         # 取得使用者追蹤的所有藝術家 URL
-        artist_links = get_followed_artists(user_url)
+        artist_links = get_followed_artists_html(user_url)
 
         for artist_link in artist_links:
             download_artist_tracks(artist_link)
