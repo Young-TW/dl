@@ -1,9 +1,6 @@
 /target
 /video
 
-input.txt
-setting.json
-
 *.DS_Store
 
 *.mp4
