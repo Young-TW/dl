@@ -122,6 +122,8 @@ def main():
             return
 
         download_album(args.album_url, 1, 1)
+    else:
+        print("Invalid mode. Please select 'all', 'artist', or 'album'.")
 
 if __name__ == "__main__":
     main()
