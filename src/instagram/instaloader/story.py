@@ -8,30 +8,36 @@ def download_instagram_content(target_username, download_stories, download_highl
 
     profile = instaloader.Profile.from_username(L.context, target_username)
 
-    # 下載即時動態
     if download_stories:
-        print(f"Downloading stories from {target_username}...")
-        for story in L.get_stories(userids=[profile.userid]):
-            for item in story.get_items():
-                L.download_storyitem(item, target=f"{target_username}_stories")
+        download_user_stories(L, profile)
 
-    # 下載精選即時動態
     if download_highlights:
-        print(f"Downloading highlights from {target_username}...")
-        for highlight in L.get_highlights(profile.userid):
-            for item in highlight.get_items():
-                L.download_storyitem(item, target=f"{target_username}_highlights")
+        download_user_highlights(L, profile)
 
-    # 下載貼文和 Reels
     if download_posts or download_reels:
-        print(f"Downloading posts and reels from {target_username}...")
-        for post in profile.get_posts():
-            if download_reels and post.typename == 'GraphVideo' and post.is_video:
-                print(f"Downloading Reel: {post.shortcode}")
-                L.download_post(post, target=f"{target_username}_reels")
-            elif download_posts and post.typename != 'GraphVideo':
-                print(f"Downloading Post: {post.shortcode}")
-                L.download_post(post, target=f"{target_username}_posts")
+        download_user_posts_and_reels(L, profile, download_posts, download_reels)
+
+def download_user_stories(L, profile):
+    print(f"Downloading stories from {profile.username}...")
+    for story in L.get_stories(userids=[profile.userid]):
+        for item in story.get_items():
+            L.download_storyitem(item, target=f"{profile.username}_stories")
+
+def download_user_highlights(L, profile):
+    print(f"Downloading highlights from {profile.username}...")
+    for highlight in L.get_highlights(profile.userid):
+        for item in highlight.get_items():
+            L.download_storyitem(item, target=f"{profile.username}_highlights")
+
+def download_user_posts_and_reels(L, profile, download_posts, download_reels):
+    print(f"Downloading posts and reels from {profile.username}...")
+    for post in profile.get_posts():
+        if download_reels and post.typename == 'GraphVideo' and post.is_video:
+            print(f"Downloading Reel: {post.shortcode}")
+            L.download_post(post, target=f"{profile.username}_reels")
+        elif download_posts and post.typename != 'GraphVideo':
+            print(f"Downloading Post: {post.shortcode}")
+            L.download_post(post, target=f"{profile.username}_posts")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download Instagram stories, highlights, posts, and reels.")
